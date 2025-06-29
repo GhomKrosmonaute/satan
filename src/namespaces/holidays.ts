@@ -1,5 +1,5 @@
 import discord from "discord.js"
-import {getSendableChannel, guildID} from "#namespaces/tst"
+import { getSendableChannel, guildID } from "#namespaces/tst"
 
 interface Holiday {
 	emoji: string
@@ -64,6 +64,9 @@ export function celebrateEmbed(holiday: Holiday) {
 export async function celebrate(holidayName: HolidayName) {
 	const holiday = holidays[holidayName] as Holiday
 	const announcements = await getSendableChannel("announcements")
-	await announcements.send({ content: `<@${guildID}>`, embeds: [celebrateEmbed(holiday)] })
+	await announcements.send({
+		content: `<@${guildID}>`,
+		embeds: [celebrateEmbed(holiday)],
+	})
 	await holiday.onCelebrate?.()
 }
