@@ -1,0 +1,33 @@
+{
+	"compilerOptions": {
+		"moduleResolution": "Node",
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"module": "esnext",
+		"target": "ES2020",
+		"lib": ["ES2023"],
+		"strict": true,
+		"noEmit": true,
+		"sourceMap": true,
+		"declaration": false,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"noImplicitOverride": true,
+		"allowImportingTsExtensions": false,
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true,
+		"paths": {
+			"#config": ["./src/config.ts"],
+			"#types": ["./src/types.ts"],
+
+			"#core/*": ["./src/core/*"],
+
+			"#tables/*": ["./src/tables/*"],
+			"#buttons/*": ["./src/buttons/*"],
+			"#namespaces/*": ["./src/namespaces/*"],
+
+			"#all": ["./src/core/index.ts"]
+		}
+	},
+	"include": ["src/**/*"]
+}
