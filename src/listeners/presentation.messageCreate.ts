@@ -4,6 +4,7 @@ import {
 	APPROVE_EMOJI,
 	DISAPPROVE_EMOJI,
 	PRESENTATION_MIN_LENGTH,
+	logTooShort,
 } from "#namespaces/presentation"
 import { roles, sendableChannels } from "#namespaces/tst"
 
@@ -25,13 +26,17 @@ export default new Listener({
 			return
 
 		if (message.content.length < PRESENTATION_MIN_LENGTH) {
-			await message.author
-				.send(
-					`## ⚠️ Présentation trop courte\nTa présentation doit contenir au moins **${PRESENTATION_MIN_LENGTH} caractères**.\nLa tienne en compte **${message.content.length}** — il t'en manque **${PRESENTATION_MIN_LENGTH - message.content.length}**.\n\nVoici ce que tu avais écrit :\n\`\`\`\n${message.content}\n\`\`\``,
-				)
-				.catch(() => {})
+			const content = message.content
 
-			await message.delete().catch(() => {})
+			await Promise.all([
+				message.author
+					.send(
+						`## ⚠️ Présentation trop courte\nTa présentation doit contenir au moins **${PRESENTATION_MIN_LENGTH} caractères**.\nLa tienne en compte **${content.length}** — il t'en manque **${PRESENTATION_MIN_LENGTH - content.length}**.\n\nVoici ce que tu avais écrit :\n\`\`\`\n${content}\n\`\`\``,
+					)
+					.catch(() => {}),
+				message.delete().catch(() => {}),
+				logTooShort(message.client, message.author, content),
+			])
 
 			return
 		}

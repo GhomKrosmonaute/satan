@@ -51,7 +51,7 @@ export default new Listener({
 
 		if (emoji === APPROVE_EMOJI) {
 			const fullMessage = await message.channel.messages.fetch(message.id)
-			await approveMember(redactor, fullMessage.id)
+			await approveMember(redactor, fullMessage)
 		} else if (emoji === DISAPPROVE_EMOJI) {
 			const fullMessage = await message.channel.messages.fetch(message.id)
 			await disapproveMember(redactor, fullMessage)

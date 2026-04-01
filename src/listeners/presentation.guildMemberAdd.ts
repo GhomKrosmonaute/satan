@@ -24,7 +24,7 @@ export default new Listener({
 				const presentation = await channel.messages.fetch(
 					userData.presentation_id,
 				)
-				await approveMember(member, presentation.id)
+				await approveMember(member, presentation)
 				return
 			} catch {
 				// Le message de presentation n'existe plus
