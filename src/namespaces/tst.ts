@@ -7,7 +7,16 @@ export const sendableChannels = {
 	bumper: "1380527003773571193",
 	shares: "1381627637201502440",
 	announcements: "1388851309670830180",
+	presentation: "1488856583827095602",
 } as const
+
+export const roles = {
+	member: "1488856666836303965",
+	awaitValidation: "1488856867634675712",
+	staff: "1488857066549547038",
+} as const
+
+export const logChannelId = "TODO_LOG_CHANNEL_ID"
 
 export async function getGuild() {
 	return client.guilds.fetch(guildID)

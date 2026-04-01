@@ -10,6 +10,7 @@ export const config = new Config({
 	client: {
 		intents: [
 			"Guilds",
+			"GuildMembers",
 			"GuildMessages",
 			"GuildMessageReactions",
 			"GuildMessageTyping",
@@ -18,7 +19,7 @@ export const config = new Config({
 			"DirectMessageTyping",
 			"MessageContent",
 		],
-		partials: [Partials.Channel],
+		partials: [Partials.Channel, Partials.Message, Partials.Reaction],
 		makeCache: Options.cacheWithLimits({
 			...Options.DefaultMakeCacheSettings,
 
