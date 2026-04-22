@@ -1,12 +1,7 @@
 import { Listener } from "#core/listener"
 
-import {
-	APPROVE_EMOJI,
-	DISAPPROVE_EMOJI,
-	PRESENTATION_MIN_LENGTH,
-	logTooShort,
-} from "#namespaces/presentation"
-import { roles, sendableChannels } from "#namespaces/tst"
+import { PRESENTATION_MIN_LENGTH, logTooShort } from "#namespaces/presentation"
+import { emotes, roles, sendableChannels } from "#namespaces/tst"
 
 export default new Listener({
 	event: "messageCreate",
@@ -41,10 +36,9 @@ export default new Listener({
 			return
 		}
 
-		await Promise.all([
-			message.member.roles.add(roles.awaitValidation),
-			message.react(APPROVE_EMOJI),
-			message.react(DISAPPROVE_EMOJI),
-		])
+		await message.member.roles.add(roles.awaitValidation)
+		await message.react(emotes.approve)
+		await message.react(emotes.disapprove)
+		await message.react(emotes.ban)
 	},
 })

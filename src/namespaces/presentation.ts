@@ -1,12 +1,12 @@
+import dayjs from "dayjs"
 import discord from "discord.js"
 
 import logger from "#core/logger"
 import users from "#tables/user"
 
-import { roles, sendableChannels } from "#namespaces/tst"
+import { generateWelcomeMessage } from "#namespaces/openai"
+import { emotes, roles, sendableChannels } from "#namespaces/tst"
 
-export const APPROVE_EMOJI = "✅"
-export const DISAPPROVE_EMOJI = "❌"
 export const PRESENTATION_MIN_LENGTH = 150
 
 export async function approveMember(
@@ -38,24 +38,36 @@ export async function approveMember(
 	}
 
 	if (presentation) {
-		for (const emoji of [APPROVE_EMOJI, DISAPPROVE_EMOJI]) {
-			await presentation.reactions.cache
-				.get(emoji)
-				?.users.remove(member.client.user.id)
-				.catch(() => {})
+		for (const emoteId of [emotes.approve, emotes.disapprove, emotes.ban]) {
+			const reaction = presentation.reactions.cache.find(
+				(r) => r.emoji.id === emoteId,
+			)
+			await reaction?.users.remove(member.client.user.id).catch(() => {})
 		}
 	}
 
 	const general = member.client.channels.cache.get(sendableChannels.general)
 
 	if (general?.isSendable()) {
+		let welcomeText: string
+		try {
+			welcomeText = await generateWelcomeMessage({
+				username: member.user.username,
+				accountCreatedAt: dayjs(member.user.createdAt).format("DD/MM/YYYY"),
+				presentationText: presentation?.content,
+				memberCount: member.guild.memberCount,
+			})
+		} catch {
+			welcomeText = `🐐 *Les portes du Temple s'ouvrent.*\n\nBienvenue parmi nous, {{MEMBER}}. Baphomet accueille ton esprit libre — que la raison guide tes pas et que le savoir t'arme.`
+		}
+
 		await general
 			.send({
 				embeds: [
 					new discord.EmbedBuilder()
 						.setColor(0x8b0000)
 						.setDescription(
-							`🐐 *Les portes du Temple s'ouvrent.*\n\nBienvenue parmi nous, ${member.user}. Baphomet accueille ton esprit libre — que la raison guide tes pas et que le savoir t'arme.`,
+							welcomeText.replace(/\{\{MEMBER}}/g, `${member.user}`),
 						)
 						.setThumbnail(member.user.displayAvatarURL())
 						.setTimestamp(),
@@ -92,6 +104,27 @@ export async function disapproveMember(
 	await presentation.delete().catch(() => {})
 }
 
+export async function banMember(
+	member: discord.GuildMember,
+	presentation: discord.Message,
+) {
+	await users.query.delete().where({ id: member.id })
+
+	const excerpt =
+		presentation.content.slice(0, 900) +
+		(presentation.content.length > 900 ? "…" : "")
+
+	await sendLog(
+		member.client,
+		"ban",
+		`**${member.user.username}** (\`${member.id}\`) a été banni(e) lors de la présentation.\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
+	)
+
+	await member.ban({ reason: "Banni lors de la présentation" })
+
+	await presentation.delete().catch(() => {})
+}
+
 export async function logTooShort(
 	client: discord.Client,
 	user: discord.User,
@@ -106,11 +139,12 @@ export async function logTooShort(
 	)
 }
 
-type LogType = "approve" | "disapprove" | "too-short" | "auto-approve"
+type LogType = "approve" | "disapprove" | "ban" | "too-short" | "auto-approve"
 
 const LOG_COLORS: Record<LogType, number> = {
 	approve: 0x2ecc71,
 	disapprove: 0xe74c3c,
+	ban: 0x8b0000,
 	"too-short": 0xe67e22,
 	"auto-approve": 0x3498db,
 }
@@ -118,6 +152,7 @@ const LOG_COLORS: Record<LogType, number> = {
 const LOG_TITLES: Record<LogType, string> = {
 	approve: "✅ Présentation approuvée",
 	disapprove: "❌ Présentation refusée",
+	ban: "🔨 Membre banni",
 	"too-short": "⚠️ Présentation trop courte",
 	"auto-approve": "🔄 Auto-approbation",
 }

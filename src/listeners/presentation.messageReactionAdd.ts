@@ -1,12 +1,11 @@
 import { Listener } from "#core/listener"
 
 import {
-	APPROVE_EMOJI,
-	DISAPPROVE_EMOJI,
 	approveMember,
+	banMember,
 	disapproveMember,
 } from "#namespaces/presentation"
-import { roles, sendableChannels } from "#namespaces/tst"
+import { emotes, roles, sendableChannels } from "#namespaces/tst"
 
 export default new Listener({
 	event: "messageReactionAdd",
@@ -47,14 +46,17 @@ export default new Listener({
 		if (!reactor.roles.cache.has(roles.staff)) return
 		if (redactor.roles.cache.has(roles.member)) return
 
-		const emoji = reaction.emoji.name
+		const emojiId = reaction.emoji.id
 
-		if (emoji === APPROVE_EMOJI) {
+		if (emojiId === emotes.approve) {
 			const fullMessage = await message.channel.messages.fetch(message.id)
 			await approveMember(redactor, fullMessage)
-		} else if (emoji === DISAPPROVE_EMOJI) {
+		} else if (emojiId === emotes.disapprove) {
 			const fullMessage = await message.channel.messages.fetch(message.id)
 			await disapproveMember(redactor, fullMessage)
+		} else if (emojiId === emotes.ban) {
+			const fullMessage = await message.channel.messages.fetch(message.id)
+			await banMember(redactor, fullMessage)
 		}
 	},
 })

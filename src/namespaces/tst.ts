@@ -17,6 +17,12 @@ export const roles = {
 	staff: "1488857066549547038",
 } as const
 
+export const emotes = {
+	approve: "1496543797222310018",
+	disapprove: "1496543751009734898",
+	ban: "1496543701051248752",
+} as const
+
 export async function getGuild() {
 	return client.guilds.fetch(guildID)
 }

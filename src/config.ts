@@ -5,7 +5,12 @@ import { Config } from "#core/config"
 export const config = new Config({
 	ignoreBots: true,
 	openSource: true,
-	envSchema: z.object({}),
+	envSchema: z.object({
+		OPENAI_API_KEY: z.string({
+			message:
+				"You need to add your OPENAI_API_KEY in the .env file. Get one at https://platform.openai.com/api-keys",
+		}),
+	}),
 	permissions: ["Administrator"],
 	client: {
 		intents: [
