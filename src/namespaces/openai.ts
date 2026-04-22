@@ -1,7 +1,14 @@
 import OpenAI from "openai"
 import env from "#core/env"
 
-const client = new OpenAI({ apiKey: env.OPENAI_API_KEY })
+let client: OpenAI | null = null
+
+function getClient(): OpenAI {
+	if (!client) {
+		client = new OpenAI({ apiKey: env.OPENAI_API_KEY })
+	}
+	return client
+}
 
 export async function generateWelcomeMessage(context: {
 	username: string
@@ -9,7 +16,7 @@ export async function generateWelcomeMessage(context: {
 	presentationText?: string
 	memberCount?: number
 }): Promise<string> {
-	const response = await client.chat.completions.create({
+	const response = await getClient().chat.completions.create({
 		model: "gpt-4o-mini",
 		max_tokens: 200,
 		temperature: 1,
