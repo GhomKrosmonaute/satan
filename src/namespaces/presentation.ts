@@ -1,3 +1,4 @@
+import util from "node:util"
 import dayjs from "dayjs"
 import discord from "discord.js"
 
@@ -5,7 +6,7 @@ import logger from "#core/logger"
 import users from "#tables/user"
 
 import { generateWelcomeMessage } from "#namespaces/openai"
-import { emotes, roles, sendableChannels } from "#namespaces/tst"
+import { emotes, roles, sendLog, sendableChannels } from "#namespaces/tst"
 
 export const PRESENTATION_MIN_LENGTH = 150
 
@@ -38,12 +39,18 @@ export async function approveMember(
 	}
 
 	if (presentation) {
-		for (const emoteId of [emotes.approve, emotes.disapprove, emotes.ban]) {
-			const reaction = presentation.reactions.cache.find(
-				(r) => r.emoji.id === emoteId,
-			)
-			await reaction?.users.remove(member.client.user.id).catch(() => {})
-		}
+		const msg = await presentation.channel.messages
+			.fetch(presentation.id)
+			.catch(() => presentation)
+		const botId = member.client.user.id
+		await Promise.all(
+			[emotes.approve, emotes.disapprove, emotes.ban].map((emoteId) => {
+				const reaction = msg.reactions.resolve(emoteId)
+				return (
+					reaction?.users.remove(botId).catch(() => {}) ?? Promise.resolve()
+				)
+			}),
+		)
 	}
 
 	const general = member.client.channels.cache.get(sendableChannels.general)
@@ -57,8 +64,27 @@ export async function approveMember(
 				presentationText: presentation?.content,
 				memberCount: member.guild.memberCount,
 			})
-		} catch {
+		} catch (err) {
 			welcomeText = `🐐 *Les portes du Temple s'ouvrent.*\n\nBienvenue parmi nous, {{MEMBER}}. Baphomet accueille ton esprit libre — que la raison guide tes pas et que le savoir t'arme.`
+			const detail = util.inspect(err, {
+				depth: 5,
+				colors: false,
+				compact: false,
+			})
+			logger.error(
+				`Welcome OpenAI fallback for ${member.user.username} (${member.id}): ${detail}`,
+				"namespaces/presentation.ts",
+			)
+			const maxDetailLen = 3500
+			const detailForDiscord =
+				detail.length > maxDetailLen
+					? `${detail.slice(0, maxDetailLen)}\n…`
+					: detail
+			await sendLog(
+				member.client,
+				"error",
+				`**Message de bienvenue OpenAI** — échec pour **${member.user.username}** (\`${member.id}\`), fallback utilisé.\n\`\`\`\n${detailForDiscord}\n\`\`\``,
+			)
 		}
 
 		await general
@@ -78,8 +104,8 @@ export async function approveMember(
 
 	await sendLog(
 		member.client,
-		"approve",
-		`**${member.user.username}** (\`${member.id}\`) a été approuvé(e) et a reçu le rôle membre.`,
+		"success",
+		`**Présentation approuvée** — **${member.user.username}** (\`${member.id}\`) a reçu le rôle membre.`,
 	)
 }
 
@@ -95,8 +121,8 @@ export async function disapproveMember(
 
 	await sendLog(
 		member.client,
-		"disapprove",
-		`**${member.user.username}** (\`${member.id}\`) a été refusé(e) et expulsé(e).\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
+		"warning",
+		`**Présentation refusée** — **${member.user.username}** (\`${member.id}\`) a été expulsé(e).\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
 	)
 
 	await member.kick("Présentation refusée")
@@ -116,8 +142,8 @@ export async function banMember(
 
 	await sendLog(
 		member.client,
-		"ban",
-		`**${member.user.username}** (\`${member.id}\`) a été banni(e) lors de la présentation.\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
+		"error",
+		`**Bannissement (présentation)** — **${member.user.username}** (\`${member.id}\`).\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
 	)
 
 	await member.ban({ reason: "Banni lors de la présentation" })
@@ -134,47 +160,7 @@ export async function logTooShort(
 
 	await sendLog(
 		client,
-		"too-short",
-		`**${user.username}** (\`${user.id}\`) a soumis une présentation trop courte (**${content.length}**/${PRESENTATION_MIN_LENGTH} caractères).\n\n**Contenu :**\n\`\`\`\n${excerpt}\n\`\`\``,
+		"warning",
+		`**Présentation trop courte** — **${user.username}** (\`${user.id}\`) (**${content.length}**/${PRESENTATION_MIN_LENGTH} caractères).\n\n**Contenu :**\n\`\`\`\n${excerpt}\n\`\`\``,
 	)
-}
-
-type LogType = "approve" | "disapprove" | "ban" | "too-short" | "auto-approve"
-
-const LOG_COLORS: Record<LogType, number> = {
-	approve: 0x2ecc71,
-	disapprove: 0xe74c3c,
-	ban: 0x8b0000,
-	"too-short": 0xe67e22,
-	"auto-approve": 0x3498db,
-}
-
-const LOG_TITLES: Record<LogType, string> = {
-	approve: "✅ Présentation approuvée",
-	disapprove: "❌ Présentation refusée",
-	ban: "🔨 Membre banni",
-	"too-short": "⚠️ Présentation trop courte",
-	"auto-approve": "🔄 Auto-approbation",
-}
-
-export async function sendLog(
-	client: discord.Client,
-	type: LogType,
-	description: string,
-) {
-	const channel = client.channels.cache.get(sendableChannels.log)
-
-	if (!channel?.isSendable()) return
-
-	await channel
-		.send({
-			embeds: [
-				new discord.EmbedBuilder()
-					.setColor(LOG_COLORS[type])
-					.setTitle(LOG_TITLES[type])
-					.setDescription(description)
-					.setTimestamp(),
-			],
-		})
-		.catch(() => {})
 }

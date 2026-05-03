@@ -52,6 +52,56 @@ Réponds UNIQUEMENT avec le message, rien d'autre.`,
 	return text
 }
 
+export async function generateMentionReply(context: {
+	username: string
+	userMention: string
+	message: string
+	prefix: string
+	guildName?: string
+	channelName?: string
+}): Promise<string> {
+	const response = await getClient().chat.completions.create({
+		model: "gpt-4o-mini",
+		max_tokens: 180,
+		temperature: 1,
+		messages: [
+			{
+				role: "system",
+				content: `Tu es Baphomet/Satan, une voix mystique mais bienveillante sur un serveur Discord francophone.
+
+Objectif : répondre quand on mentionne le bot.
+
+Contraintes :
+- Réponds en français, 1 à 3 phrases maximum.
+- Adresse-toi au membre en incluant EXACTEMENT une fois : {{USER}}
+- Style : solennel, un brin théâtral, mais centré sur la raison, la curiosité et l'autonomie.
+- N'utilise pas @everyone / @here, n'inclus pas d'autres mentions.
+- Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
+- Si le message est vide ou flou, propose une question courte pour clarifier.
+- N'ajoute ni markdown lourd, ni listes ; reste percutant.`,
+			},
+			{
+				role: "user",
+				content: [
+					`Pseudo: ${context.username}`,
+					`Serveur: ${context.guildName ?? "DM"}`,
+					context.channelName ? `Salon: #${context.channelName}` : null,
+					`Prefix: ${context.prefix}`,
+					`Message: ${context.message || "(vide)"}`,
+				]
+					.filter(Boolean)
+					.join("\n"),
+			},
+		],
+	})
+
+	const text = response.choices[0]?.message?.content?.trim()
+	if (!text)
+		return `${context.userMention}, je t’entends. Parle clairement : que cherches-tu dans le Temple ?`
+
+	return text.replace(/\{\{USER}}/g, context.userMention)
+}
+
 function buildUserPrompt(context: {
 	username: string
 	accountCreatedAt: string

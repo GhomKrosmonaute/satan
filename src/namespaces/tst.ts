@@ -1,4 +1,7 @@
+import discord from "discord.js"
+
 import client from "#core/client"
+import { systemColors } from "#core/util"
 
 export const guildID = "1380488557629542501"
 export const sendableChannels = {
@@ -36,4 +39,44 @@ export async function getSendableChannel(name: keyof typeof sendableChannels) {
 		throw new Error(`Channel ${name} is not a text channel`)
 	}
 	return channel
+}
+
+export type LogType = "error" | "info" | "success" | "warning" | "system"
+
+const LOG_COLORS: Record<LogType, number> = {
+	error: systemColors.error,
+	info: discord.Colors.Blue,
+	success: systemColors.success,
+	warning: systemColors.warning,
+	system: discord.Colors.Grey,
+}
+
+const LOG_TITLES: Record<LogType, string> = {
+	error: "❌  Erreur",
+	info: "ℹ️  Information",
+	success: "✅  Succès",
+	warning: "⚠️  Avertissement",
+	system: "⚙️  Système",
+}
+
+export async function sendLog(
+	client: discord.Client,
+	type: LogType,
+	description: string,
+) {
+	const channel = client.channels.cache.get(sendableChannels.log)
+
+	if (!channel?.isSendable()) return
+
+	await channel
+		.send({
+			embeds: [
+				new discord.EmbedBuilder()
+					.setColor(LOG_COLORS[type])
+					.setTitle(LOG_TITLES[type])
+					.setDescription(description)
+					.setTimestamp(),
+			],
+		})
+		.catch(() => {})
 }
