@@ -42,14 +42,11 @@ export async function approveMember(
 		const msg = await presentation.channel.messages
 			.fetch(presentation.id)
 			.catch(() => presentation)
-		const botId = member.client.user.id
+
 		await Promise.all(
-			[emotes.approve, emotes.disapprove, emotes.ban].map((emoteId) => {
-				const reaction = msg.reactions.resolve(emoteId)
-				return (
-					reaction?.users.remove(botId).catch(() => {}) ?? Promise.resolve()
-				)
-			}),
+			[...msg.reactions.cache.values()]
+				.filter((reaction) => reaction.emoji.id !== emotes.approve)
+				.map((reaction) => reaction.remove().catch(() => {})),
 		)
 	}
 
@@ -142,7 +139,7 @@ export async function banMember(
 
 	await sendLog(
 		member.client,
-		"error",
+		"success",
 		`**Bannissement (présentation)** — **${member.user.username}** (\`${member.id}\`).\n\n**Présentation :**\n\`\`\`\n${excerpt}\n\`\`\``,
 	)
 

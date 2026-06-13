@@ -141,7 +141,7 @@ export async function executeBaphometModeration(
 					deleteMessageSeconds: deleteMessageSeconds * 24 * 60 * 60,
 				})
 				const message = `**Ban Baphomet** — **${member.user.username}** (\`${member.id}\`)\nRaison : ${reason}`
-				await sendLog(member.client, "error", message)
+				await sendLog(member.client, "success", message)
 				return {
 					attempted: true,
 					action: "ban",
