@@ -6,9 +6,9 @@ export const config = new Config({
 	ignoreBots: true,
 	openSource: true,
 	envSchema: z.object({
-		OPENAI_API_KEY: z.string({
+		GEMINI_API_KEY: z.string({
 			message:
-				"You need to add your OPENAI_API_KEY in the .env file. Get one at https://platform.openai.com/api-keys",
+				"You need to add your GEMINI_API_KEY in the .env file. Get one at https://aistudio.google.com/apikey",
 		}),
 	}),
 	permissions: ["Administrator"],

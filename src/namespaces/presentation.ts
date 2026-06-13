@@ -5,7 +5,7 @@ import discord from "discord.js"
 import logger from "#core/logger"
 import users from "#tables/user"
 
-import { generateWelcomeMessage } from "#namespaces/openai"
+import { generateWelcomeMessage } from "#namespaces/gemini"
 import { emotes, roles, sendLog, sendableChannels } from "#namespaces/tst"
 
 export const PRESENTATION_MIN_LENGTH = 150
@@ -72,7 +72,7 @@ export async function approveMember(
 				compact: false,
 			})
 			logger.error(
-				`Welcome OpenAI fallback for ${member.user.username} (${member.id}): ${detail}`,
+				`Welcome Gemini fallback for ${member.user.username} (${member.id}): ${detail}`,
 				"namespaces/presentation.ts",
 			)
 			const maxDetailLen = 3500
@@ -83,7 +83,7 @@ export async function approveMember(
 			await sendLog(
 				member.client,
 				"error",
-				`**Message de bienvenue OpenAI** — échec pour **${member.user.username}** (\`${member.id}\`), fallback utilisé.\n\`\`\`\n${detailForDiscord}\n\`\`\``,
+				`**Message de bienvenue Gemini** — échec pour **${member.user.username}** (\`${member.id}\`), fallback utilisé.\n\`\`\`\n${detailForDiscord}\n\`\`\``,
 			)
 		}
 

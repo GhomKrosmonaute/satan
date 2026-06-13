@@ -5,7 +5,7 @@ import env from "#core/env"
 import { Listener } from "#core/listener"
 import logger from "#core/logger"
 
-import { generateMentionReply } from "#namespaces/openai"
+import { generateMentionReply } from "#namespaces/gemini"
 import { sendLog } from "#namespaces/tst"
 
 export default new Listener({
@@ -53,13 +53,13 @@ export default new Listener({
 				compact: false,
 			})
 			logger.error(
-				`Mention OpenAI fallback for ${message.author.username} (${message.author.id}): ${detail}`,
+				`Mention Gemini fallback for ${message.author.username} (${message.author.id}): ${detail}`,
 				"listeners/baphomet.messageCreate.ts",
 			)
 			await sendLog(
 				message.client,
 				"error",
-				`**OpenAI (mention)** — échec de génération.\n\`\`\`\n${detail.slice(0, 3500)}\n\`\`\``,
+				`**Gemini (mention)** — échec de génération.\n\`\`\`\n${detail.slice(0, 3500)}\n\`\`\``,
 			)
 			content = `${message.author}, je t’entends… mais le souffle s’est brisé. Réessaie en une phrase claire.`
 		}

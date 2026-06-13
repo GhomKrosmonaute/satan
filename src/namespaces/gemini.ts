@@ -1,13 +1,33 @@
-import OpenAI from "openai"
+import { GoogleGenAI } from "@google/genai"
 import env from "#core/env"
 
-let client: OpenAI | null = null
+const MODEL = "gemini-2.5-flash"
 
-function getClient(): OpenAI {
+let client: GoogleGenAI | null = null
+
+function getClient(): GoogleGenAI {
 	if (!client) {
-		client = new OpenAI({ apiKey: env.OPENAI_API_KEY })
+		client = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY })
 	}
 	return client
+}
+
+async function generateText(
+	system: string,
+	user: string,
+	maxOutputTokens: number,
+): Promise<string | undefined> {
+	const response = await getClient().models.generateContent({
+		model: MODEL,
+		contents: user,
+		config: {
+			systemInstruction: system,
+			maxOutputTokens,
+			temperature: 1,
+		},
+	})
+
+	return response.text?.trim()
 }
 
 export async function generateWelcomeMessage(context: {
@@ -16,14 +36,8 @@ export async function generateWelcomeMessage(context: {
 	presentationText?: string
 	memberCount?: number
 }): Promise<string> {
-	const response = await getClient().chat.completions.create({
-		model: "gpt-4o-mini",
-		max_tokens: 200,
-		temperature: 1,
-		messages: [
-			{
-				role: "system",
-				content: `Tu es Baphomet, le gardien d'un serveur Discord du Temple Satanique de France (TST). Tu accueilles les nouveaux membres avec bienveillance, dans l'esprit du satanisme moderne : raison, empathie, liberté individuelle, justice, autonomie corporelle et connaissance.
+	const text = await generateText(
+		`Tu es Baphomet, le gardien d'un serveur Discord du Temple Satanique de France (TST). Tu accueilles les nouveaux membres avec bienveillance, dans l'esprit du satanisme moderne : raison, empathie, liberté individuelle, justice, autonomie corporelle et connaissance.
 
 Génère un court message de bienvenue (2-3 phrases max) pour un nouveau membre qui vient d'être approuvé. Le message doit :
 - Commencer par "🐐 *Les portes du Temple s'ouvrent.*\n\n"
@@ -35,15 +49,9 @@ Génère un court message de bienvenue (2-3 phrases max) pour un nouveau membre 
 - Rester court et percutant
 
 Réponds UNIQUEMENT avec le message, rien d'autre.`,
-			},
-			{
-				role: "user",
-				content: buildUserPrompt(context),
-			},
-		],
-	})
-
-	const text = response.choices[0]?.message?.content?.trim()
+		buildUserPrompt(context),
+		200,
+	)
 
 	if (!text) {
 		return fallbackMessage()
@@ -60,14 +68,8 @@ export async function generateMentionReply(context: {
 	guildName?: string
 	channelName?: string
 }): Promise<string> {
-	const response = await getClient().chat.completions.create({
-		model: "gpt-4o-mini",
-		max_tokens: 180,
-		temperature: 1,
-		messages: [
-			{
-				role: "system",
-				content: `Tu es Baphomet/Satan, une voix mystique mais bienveillante sur un serveur Discord francophone.
+	const text = await generateText(
+		`Tu es Baphomet/Satan, une voix mystique mais bienveillante sur un serveur Discord francophone.
 
 Objectif : répondre quand on mentionne le bot.
 
@@ -79,23 +81,18 @@ Contraintes :
 - Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
 - Si le message est vide ou flou, propose une question courte pour clarifier.
 - N'ajoute ni markdown lourd, ni listes ; reste percutant.`,
-			},
-			{
-				role: "user",
-				content: [
-					`Pseudo: ${context.username}`,
-					`Serveur: ${context.guildName ?? "DM"}`,
-					context.channelName ? `Salon: #${context.channelName}` : null,
-					`Prefix: ${context.prefix}`,
-					`Message: ${context.message || "(vide)"}`,
-				]
-					.filter(Boolean)
-					.join("\n"),
-			},
-		],
-	})
+		[
+			`Pseudo: ${context.username}`,
+			`Serveur: ${context.guildName ?? "DM"}`,
+			context.channelName ? `Salon: #${context.channelName}` : null,
+			`Prefix: ${context.prefix}`,
+			`Message: ${context.message || "(vide)"}`,
+		]
+			.filter(Boolean)
+			.join("\n"),
+		180,
+	)
 
-	const text = response.choices[0]?.message?.content?.trim()
 	if (!text)
 		return `${context.userMention}, je t’entends. Parle clairement : que cherches-tu dans le Temple ?`
 
