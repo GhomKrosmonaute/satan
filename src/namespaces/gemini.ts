@@ -24,10 +24,67 @@ async function generateText(
 			systemInstruction: system,
 			maxOutputTokens,
 			temperature: 1,
+			thinkingConfig: {
+				thinkingBudget: 0,
+			},
 		},
 	})
 
 	return response.text?.trim()
+}
+
+function buildInteractionContext(context: {
+	username: string
+	message: string
+	guildName?: string
+	channelName?: string
+	prefix?: string
+}): string {
+	return [
+		`Pseudo: ${context.username}`,
+		`Serveur: ${context.guildName ?? "DM"}`,
+		context.channelName ? `Salon: #${context.channelName}` : null,
+		context.prefix ? `Prefix: ${context.prefix}` : null,
+		`Message: ${context.message || "(vide)"}`,
+	]
+		.filter(Boolean)
+		.join("\n")
+}
+
+const BAPHOMET_REPLY_PROMPT = `Tu es Baphomet/Satan, une voix sage et éclairée sur un serveur Discord du Temple Satanique de France. Tu incarnes le satanisme moderne : raison, empathie, liberté individuelle, justice, autonomie corporelle et quête de connaissance.
+
+Contraintes :
+- Réponds en français, {{SENTENCES}}.
+- Adresse-toi au membre en incluant EXACTEMENT une fois : {{USER}}
+- Ton : solennel, mystique mais bienveillant, rationnel — jamais agressif ni gratuitement théâtral.
+- Centre tes réponses sur la raison, la curiosité et l'autonomie.
+- N'utilise pas @everyone / @here, n'inclus pas d'autres mentions.
+- Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
+- N'ajoute ni markdown lourd, ni listes ; reste fluide et percutant.
+- Termine toujours par une phrase complète.
+
+Réponds UNIQUEMENT avec ton message, rien d'autre.`
+
+async function generateBaphometReply(
+	context: {
+		username: string
+		userMention: string
+		message: string
+		guildName?: string
+		channelName?: string
+		prefix?: string
+	},
+	options: { sentences: string; maxOutputTokens: number; fallback: string },
+): Promise<string> {
+	const text = await generateText(
+		BAPHOMET_REPLY_PROMPT.replace("{{SENTENCES}}", options.sentences),
+		buildInteractionContext(context),
+		options.maxOutputTokens,
+	)
+
+	if (!text) return options.fallback
+
+	return text.replace(/\{\{USER}}/g, context.userMention)
 }
 
 export async function generateWelcomeMessage(context: {
@@ -50,7 +107,7 @@ Génère un court message de bienvenue (2-3 phrases max) pour un nouveau membre 
 
 Réponds UNIQUEMENT avec le message, rien d'autre.`,
 		buildUserPrompt(context),
-		200,
+		512,
 	)
 
 	if (!text) {
@@ -68,35 +125,25 @@ export async function generateMentionReply(context: {
 	guildName?: string
 	channelName?: string
 }): Promise<string> {
-	const text = await generateText(
-		`Tu es Baphomet/Satan, une voix mystique mais bienveillante sur un serveur Discord francophone.
+	return generateBaphometReply(context, {
+		sentences: "1 à 3 phrases maximum",
+		maxOutputTokens: 512,
+		fallback: `${context.userMention}, je t’entends. Parle clairement : que cherches-tu dans le Temple ?`,
+	})
+}
 
-Objectif : répondre quand on mentionne le bot.
-
-Contraintes :
-- Réponds en français, 1 à 3 phrases maximum.
-- Adresse-toi au membre en incluant EXACTEMENT une fois : {{USER}}
-- Style : solennel, un brin théâtral, mais centré sur la raison, la curiosité et l'autonomie.
-- N'utilise pas @everyone / @here, n'inclus pas d'autres mentions.
-- Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
-- Si le message est vide ou flou, propose une question courte pour clarifier.
-- N'ajoute ni markdown lourd, ni listes ; reste percutant.`,
-		[
-			`Pseudo: ${context.username}`,
-			`Serveur: ${context.guildName ?? "DM"}`,
-			context.channelName ? `Salon: #${context.channelName}` : null,
-			`Prefix: ${context.prefix}`,
-			`Message: ${context.message || "(vide)"}`,
-		]
-			.filter(Boolean)
-			.join("\n"),
-		180,
-	)
-
-	if (!text)
-		return `${context.userMention}, je t’entends. Parle clairement : que cherches-tu dans le Temple ?`
-
-	return text.replace(/\{\{USER}}/g, context.userMention)
+export async function generateConversationReply(context: {
+	username: string
+	userMention: string
+	message: string
+	guildName?: string
+	channelName?: string
+}): Promise<string> {
+	return generateBaphometReply(context, {
+		sentences: "2 à 5 phrases complètes",
+		maxOutputTokens: 1024,
+		fallback: `${context.userMention}, je t’entends… mais les mots se sont perdus dans l’ombre. Reformule ta question.`,
+	})
 }
 
 function buildUserPrompt(context: {
