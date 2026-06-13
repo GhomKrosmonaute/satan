@@ -29,8 +29,79 @@ export async function deliverBaphometResponse(options: {
 	member?: discord.GuildMember | null
 	errorSource: string
 	errorLogTitle: string
+	channel?: discord.TextBasedChannel | null
+	userId?: string
+	currentMessageId?: string
 }): Promise<string> {
-	const { client, context, member, errorSource, errorLogTitle } = options
+	const {
+		client,
+		context,
+		member,
+		errorSource,
+		errorLogTitle,
+		channel,
+		userId,
+		currentMessageId,
+	} = options
+
+	if (channel && userId) {
+		try {
+			const fetched = await channel.messages
+				.fetch({ limit: 100 })
+				.catch(() => null)
+			if (fetched) {
+				const botId = client.user?.id
+				const sorted = Array.from(fetched.values()).sort(
+					(a, b) => b.createdTimestamp - a.createdTimestamp,
+				)
+
+				const channelHistoryRaw = sorted
+					.filter(
+						(m) =>
+							m.id !== currentMessageId &&
+							(!botId || m.author.id !== botId) &&
+							m.author.id !== userId,
+					)
+					.slice(0, 5)
+					.reverse()
+
+				const botHistoryRaw = botId
+					? sorted
+							.filter((m) => m.author.id === botId && m.id !== currentMessageId)
+							.slice(0, 5)
+							.reverse()
+					: []
+
+				const userHistoryRaw = sorted
+					.filter((m) => m.author.id === userId && m.id !== currentMessageId)
+					.slice(0, 5)
+					.reverse()
+
+				context.channelHistory = channelHistoryRaw.map((m) => ({
+					author: m.author.username,
+					content: m.content,
+					createdAt: m.createdAt,
+				}))
+
+				context.botHistory = botHistoryRaw.map((m) => ({
+					author: m.author.username,
+					content: m.content,
+					createdAt: m.createdAt,
+				}))
+
+				context.userHistory = userHistoryRaw.map((m) => ({
+					author: m.author.username,
+					content: m.content,
+					createdAt: m.createdAt,
+				}))
+			}
+		} catch (err) {
+			logger.error(
+				`Error fetching baphomet message history: ${err}`,
+				errorSource,
+			)
+		}
+	}
 
 	try {
 		if (member && context.moderationAvailable) {

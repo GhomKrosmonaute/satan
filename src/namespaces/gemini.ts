@@ -81,6 +81,12 @@ export type BaphometModerationAction =
 	| { type: "kick"; reason: string }
 	| { type: "ban"; reason: string; deleteMessageDays?: number }
 
+export type BaphometMessageContext = {
+	author: string
+	content: string
+	createdAt: Date
+}
+
 export type BaphometContext = {
 	username: string
 	userMention: string
@@ -91,6 +97,9 @@ export type BaphometContext = {
 	prefix?: string
 	moderationAvailable?: boolean
 	moderationOutcome?: BaphometModerationOutcome
+	channelHistory?: BaphometMessageContext[]
+	botHistory?: BaphometMessageContext[]
+	userHistory?: BaphometMessageContext[]
 }
 
 export type BaphometReply = {
@@ -114,7 +123,7 @@ Contraintes :
 - Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
 - N'ajoute ni markdown lourd, ni listes ; reste fluide et percutant.
 - Termine toujours par une phrase complète.
-- Tiens compte du contexte fourni (salon, serveur, canal d'interaction).
+- Tiens compte du contexte fourni (salon, serveur, canal d'interaction, historiques des derniers messages du salon, de toi-même et de l'utilisateur pour maintenir la cohérence et la continuité de la discussion).
 
 Réponds UNIQUEMENT avec ton message, rien d'autre.`
 
@@ -145,11 +154,42 @@ function buildInteractionContext(context: BaphometContext): string {
 		`Salon: ${context.channelName ?? "inconnu"}`,
 		`Préfixe du bot: ${context.prefix ?? env.BOT_PREFIX}`,
 		`Modération disponible: ${context.moderationAvailable ? "oui" : "non"}`,
-		`Message: ${context.message.trim() || "(vide)"}`,
 	]
 
+	if (context.channelHistory && context.channelHistory.length > 0) {
+		lines.push(
+			"\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DU SALON (AUTRES MEMBRES) ---",
+		)
+		context.channelHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	if (context.botHistory && context.botHistory.length > 0) {
+		lines.push("\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE BAPHOMET (TOI) ---")
+		context.botHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	if (context.userHistory && context.userHistory.length > 0) {
+		lines.push(
+			`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE L'UTILISATEUR (${context.username}) ---`,
+		)
+		context.userHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	lines.push(
+		`\nMessage actuel adressé à Baphomet: ${context.message.trim() || "(vide)"}`,
+	)
+
 	if (context.moderationOutcome?.attempted) {
-		lines.push(`Sanction tentée: ${context.moderationOutcome.actionLabel}`)
+		lines.push(`\nSanction tentée: ${context.moderationOutcome.actionLabel}`)
 		lines.push(
 			`Résultat sanction: ${context.moderationOutcome.success ? "succès" : "échec"}`,
 		)

@@ -36,6 +36,9 @@ export default new Listener({
 			member,
 			errorSource: "listeners/baphomet.messageCreate.ts",
 			errorLogTitle: "Gemini (mention)",
+			channel: message.channel,
+			userId: message.author.id,
+			currentMessageId: message.id,
 			context: {
 				username: message.author.username,
 				userMention: `${message.author}`,
