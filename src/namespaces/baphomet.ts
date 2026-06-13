@@ -1,5 +1,5 @@
 import util from "node:util"
-import type discord from "discord.js"
+import discord from "discord.js"
 
 import logger from "#core/logger"
 
@@ -16,6 +16,31 @@ const DISCORD_MESSAGE_LIMIT = 2000
 
 export type BaphometDeliveryContext = BaphometContext & {
 	moderationAvailable: boolean
+}
+
+const baphometCooldowns = new Map<string, number[]>()
+
+function checkAndUpdateCooldown(userId: string): {
+	allowed: boolean
+	remainingMs?: number
+} {
+	const now = Date.now()
+	const oneHour = 60 * 60 * 1000
+
+	let timestamps = baphometCooldowns.get(userId) ?? []
+
+	// Filter out timestamps older than 1 hour
+	timestamps = timestamps.filter((t) => now - t < oneHour)
+
+	if (timestamps.length >= 5) {
+		const oldest = timestamps[0]
+		const remainingMs = oneHour - (now - oldest)
+		return { allowed: false, remainingMs }
+	}
+
+	timestamps.push(now)
+	baphometCooldowns.set(userId, timestamps)
+	return { allowed: true }
 }
 
 function truncateForDiscord(content: string): string {
@@ -43,6 +68,20 @@ export async function deliverBaphometResponse(options: {
 		userId,
 		currentMessageId,
 	} = options
+
+	// Check for non-admin cooldown
+	if (userId) {
+		const isAdmin =
+			member?.permissions.has(discord.PermissionFlagsBits.Administrator) ??
+			false
+		if (!isAdmin) {
+			const cooldownStatus = checkAndUpdateCooldown(userId)
+			if (!cooldownStatus.allowed && cooldownStatus.remainingMs) {
+				const minutes = Math.ceil(cooldownStatus.remainingMs / (60 * 1000))
+				return `${context.userMention}, calme ton impatience. Les murmures de l’abîme demandent du temps pour se former. Tu as dépassé la limite de 5 messages par heure. Réessaie dans ${minutes} minute${minutes > 1 ? "s" : ""}.`
+			}
+		}
+	}
 
 	if (channel && userId) {
 		try {
