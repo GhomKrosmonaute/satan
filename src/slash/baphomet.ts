@@ -1,12 +1,7 @@
-import util from "node:util"
-
-import logger from "#core/logger"
+import env from "#core/env"
 import { SlashCommand } from "#core/slash"
 
-import { generateConversationReply } from "#namespaces/gemini"
-import { sendLog } from "#namespaces/tst"
-
-const DISCORD_MESSAGE_LIMIT = 2000
+import { deliverBaphometResponse } from "#namespaces/baphomet"
 
 export default new SlashCommand({
 	name: "baphomet",
@@ -24,39 +19,33 @@ export default new SlashCommand({
 
 		await interaction.deferReply()
 
-		let content: string
-		try {
-			content = await generateConversationReply({
+		const member = interaction.inGuild()
+			? await interaction
+					.guild!.members.fetch(interaction.user.id)
+					.catch(() => null)
+			: null
+
+		const content = await deliverBaphometResponse({
+			client: interaction.client,
+			member,
+			errorSource: "slash/baphomet.ts",
+			errorLogTitle: "Gemini (/baphomet)",
+			context: {
 				username: interaction.user.username,
 				userMention: `${interaction.user}`,
 				message,
+				source: "slash",
+				prefix: env.BOT_PREFIX,
 				guildName: interaction.guild?.name,
 				channelName:
 					interaction.channel && "name" in interaction.channel
 						? String(interaction.channel.name)
-						: undefined,
-			})
-		} catch (err) {
-			const detail = util.inspect(err, {
-				depth: 5,
-				colors: false,
-				compact: false,
-			})
-			logger.error(
-				`Slash Baphomet Gemini fallback for ${interaction.user.username} (${interaction.user.id}): ${detail}`,
-				"slash/baphomet.ts",
-			)
-			await sendLog(
-				interaction.client,
-				"error",
-				`**Gemini (/baphomet)** — échec de génération pour **${interaction.user.username}** (\`${interaction.user.id}\`).\n\`\`\`\n${detail.slice(0, 3500)}\n\`\`\``,
-			)
-			content = `${interaction.user}, je t’entends… mais le souffle s’est brisé. Réessaie en une phrase claire.`
-		}
-
-		if (content.length > DISCORD_MESSAGE_LIMIT) {
-			content = `${content.slice(0, DISCORD_MESSAGE_LIMIT - 1)}…`
-		}
+						: interaction.guild
+							? undefined
+							: "message privé",
+				moderationAvailable: !!member,
+			},
+		})
 
 		return interaction.editReply({
 			content,

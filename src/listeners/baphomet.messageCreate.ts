@@ -1,12 +1,9 @@
-import util from "node:util"
 import config from "#config"
 import * as command from "#core/command"
 import env from "#core/env"
 import { Listener } from "#core/listener"
-import logger from "#core/logger"
 
-import { generateMentionReply } from "#namespaces/gemini"
-import { sendLog } from "#namespaces/tst"
+import { deliverBaphometResponse } from "#namespaces/baphomet"
 
 export default new Listener({
 	event: "messageCreate",
@@ -33,39 +30,29 @@ export default new Listener({
 			if (atStartBot && !barePing) return
 		}
 
-		let content: string
-		try {
-			content = await generateMentionReply({
+		const member = message.member ?? null
+		const content = await deliverBaphometResponse({
+			client: message.client,
+			member,
+			errorSource: "listeners/baphomet.messageCreate.ts",
+			errorLogTitle: "Gemini (mention)",
+			context: {
 				username: message.author.username,
 				userMention: `${message.author}`,
 				message: barePing ? "" : trimmed,
+				source: "mention",
 				prefix,
 				guildName: message.guild?.name,
 				channelName:
 					message.channel && "name" in message.channel
 						? String((message.channel as any).name)
-						: undefined,
-			})
-		} catch (err) {
-			const detail = util.inspect(err, {
-				depth: 5,
-				colors: false,
-				compact: false,
-			})
-			logger.error(
-				`Mention Gemini fallback for ${message.author.username} (${message.author.id}): ${detail}`,
-				"listeners/baphomet.messageCreate.ts",
-			)
-			await sendLog(
-				message.client,
-				"error",
-				`**Gemini (mention)** — échec de génération.\n\`\`\`\n${detail.slice(0, 3500)}\n\`\`\``,
-			)
-			content = `${message.author}, je t’entends… mais le souffle s’est brisé. Réessaie en une phrase claire.`
-		}
+						: message.guild
+							? undefined
+							: "message privé",
+				moderationAvailable: !!member,
+			},
+		})
 
-		// Le listener natif répond au ping nu avec un message "prefix".
-		// Sans toucher aux fichiers .native.ts, on supprime ce message si on le détecte.
 		if (barePing) {
 			setTimeout(() => {
 				message.channel.messages
