@@ -100,6 +100,11 @@ export type BaphometContext = {
 	channelHistory?: BaphometMessageContext[]
 	botHistory?: BaphometMessageContext[]
 	userHistory?: BaphometMessageContext[]
+	mentionedUserHistory?: BaphometMessageContext[]
+	mentionedUserUsername?: string
+	mentionedChannelHistory?: BaphometMessageContext[]
+	mentionedChannelName?: string
+	mentionedMessageHistory?: BaphometMessageContext[]
 }
 
 export type BaphometReply = {
@@ -123,7 +128,7 @@ Contraintes :
 - Ne mentionne jamais "TST" ni "The Satanic Temple" : dis seulement "le Temple".
 - N'ajoute ni markdown lourd, ni listes ; reste fluide et percutant.
 - Termine toujours par une phrase complète.
-- Tiens compte du contexte fourni (salon, serveur, canal d'interaction, historiques des derniers messages du salon, de toi-même et de l'utilisateur pour maintenir la cohérence et la continuité de la discussion).
+- Tiens compte du contexte fourni (salon, serveur, canal d'interaction, historiques des derniers messages du salon, de toi-même, de l'utilisateur, et éventuellement d'un membre, salon ou message mentionné pour maintenir la cohérence et la continuité de la discussion).
 
 Réponds UNIQUEMENT avec ton message, rien d'autre.`
 
@@ -179,6 +184,40 @@ function buildInteractionContext(context: BaphometContext): string {
 			`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE L'UTILISATEUR (${context.username}) ---`,
 		)
 		context.userHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	if (context.mentionedUserHistory && context.mentionedUserHistory.length > 0) {
+		lines.push(
+			`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DU MEMBRE MENTIONNÉ (${context.mentionedUserUsername ?? "membre"}) ---`,
+		)
+		context.mentionedUserHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	if (
+		context.mentionedChannelHistory &&
+		context.mentionedChannelHistory.length > 0
+	) {
+		lines.push(
+			`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DU SALON MENTIONNÉ (#${context.mentionedChannelName ?? "salon"}) ---`,
+		)
+		context.mentionedChannelHistory.forEach((msg, idx) => {
+			const dateStr = msg.createdAt.toLocaleString("fr-FR")
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+		})
+	}
+
+	if (
+		context.mentionedMessageHistory &&
+		context.mentionedMessageHistory.length > 0
+	) {
+		lines.push("\n--- MESSAGE MENTIONNÉ ET SON CONTEXTE DE DISCUSSION ---")
+		context.mentionedMessageHistory.forEach((msg, idx) => {
 			const dateStr = msg.createdAt.toLocaleString("fr-FR")
 			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
 		})

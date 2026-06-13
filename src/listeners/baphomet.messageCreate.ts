@@ -39,6 +39,7 @@ export default new Listener({
 			channel: message.channel,
 			userId: message.author.id,
 			currentMessageId: message.id,
+			rawMessage: message,
 			context: {
 				username: message.author.username,
 				userMention: `${message.author}`,
