@@ -85,6 +85,7 @@ export type BaphometMessageContext = {
 	author: string
 	content: string
 	createdAt: Date
+	isBot?: boolean
 }
 
 export type BaphometContext = {
@@ -97,6 +98,7 @@ export type BaphometContext = {
 	prefix?: string
 	moderationAvailable?: boolean
 	moderationOutcome?: BaphometModerationOutcome
+	conversationHistory?: BaphometMessageContext[]
 	channelHistory?: BaphometMessageContext[]
 	botHistory?: BaphometMessageContext[]
 	userHistory?: BaphometMessageContext[]
@@ -203,32 +205,45 @@ function buildInteractionContext(context: BaphometContext): string {
 		`Modération disponible: ${context.moderationAvailable ? "oui" : "non"}`,
 	]
 
-	if (context.channelHistory && context.channelHistory.length > 0) {
+	if (context.conversationHistory && context.conversationHistory.length > 0) {
 		lines.push(
-			"\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DU SALON (AUTRES MEMBRES) ---",
+			"\n--- FIL CHRONOLOGIQUE DE LA DISCUSSION (DU PLUS ANCIEN AU PLUS RÉCENT) ---",
 		)
-		context.channelHistory.forEach((msg, idx) => {
+		context.conversationHistory.forEach((msg, idx) => {
 			const dateStr = msg.createdAt.toLocaleString("fr-FR")
-			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+			const authorLabel = msg.isBot ? "TOI (Baphomet)" : msg.author
+			lines.push(`${idx + 1}. [Le ${dateStr}] ${authorLabel}: ${msg.content}`)
 		})
-	}
+	} else {
+		if (context.channelHistory && context.channelHistory.length > 0) {
+			lines.push(
+				"\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DU SALON (AUTRES MEMBRES) ---",
+			)
+			context.channelHistory.forEach((msg, idx) => {
+				const dateStr = msg.createdAt.toLocaleString("fr-FR")
+				lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+			})
+		}
 
-	if (context.botHistory && context.botHistory.length > 0) {
-		lines.push("\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE BAPHOMET (TOI) ---")
-		context.botHistory.forEach((msg, idx) => {
-			const dateStr = msg.createdAt.toLocaleString("fr-FR")
-			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
-		})
-	}
+		if (context.botHistory && context.botHistory.length > 0) {
+			lines.push(
+				"\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE BAPHOMET (TOI) ---",
+			)
+			context.botHistory.forEach((msg, idx) => {
+				const dateStr = msg.createdAt.toLocaleString("fr-FR")
+				lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+			})
+		}
 
-	if (context.userHistory && context.userHistory.length > 0) {
-		lines.push(
-			`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE L'UTILISATEUR (${context.username}) ---`,
-		)
-		context.userHistory.forEach((msg, idx) => {
-			const dateStr = msg.createdAt.toLocaleString("fr-FR")
-			lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
-		})
+		if (context.userHistory && context.userHistory.length > 0) {
+			lines.push(
+				`\n--- HISTORIQUE DES 5 DERNIERS MESSAGES DE L'UTILISATEUR (${context.username}) ---`,
+			)
+			context.userHistory.forEach((msg, idx) => {
+				const dateStr = msg.createdAt.toLocaleString("fr-FR")
+				lines.push(`${idx + 1}. [Le ${dateStr}] ${msg.author}: ${msg.content}`)
+			})
+		}
 	}
 
 	if (context.mentionedUserHistory && context.mentionedUserHistory.length > 0) {

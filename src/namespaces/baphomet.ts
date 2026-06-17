@@ -118,6 +118,18 @@ export async function deliverBaphometResponse(options: {
 					.slice(0, 5)
 					.reverse()
 
+				const conversationHistoryRaw = sorted
+					.filter((m) => m.id !== currentMessageId)
+					.slice(0, 15)
+					.reverse()
+
+				context.conversationHistory = conversationHistoryRaw.map((m) => ({
+					author: m.author.username,
+					content: m.content,
+					createdAt: m.createdAt,
+					isBot: botId ? m.author.id === botId : false,
+				}))
+
 				context.channelHistory = channelHistoryRaw.map((m) => ({
 					author: m.author.username,
 					content: m.content,
