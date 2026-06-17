@@ -82,6 +82,7 @@ export type BaphometModerationAction =
 	| { type: "ban"; reason: string; deleteMessageDays?: number }
 
 export type BaphometMessageContext = {
+	id?: string
 	author: string
 	content: string
 	createdAt: Date
@@ -166,6 +167,11 @@ Considérations d'Écoute Passive (quand le canal d'interaction est passif - auc
 Considérations d'Appel Direct par Commande Slash (quand le canal est une commande /baphomet) :
 - Tu es interpellé par commande slash. Tu as l'obligation absolue de répondre et de livrer une vraie réponse dans ton personnage complet. Il est STRICTEMENT INTERDIT de répondre IGNORE dans ce cas.
 
+Considérations d'Aiguillage de Réponse (REPLY_TO) :
+- Si tu constates que ta réponse s'adresse directement à un message précis du fil chronologique (par exemple pour répondre à une question passée ou pour corriger une groooosse connerie dite quelques messages plus haut, alors que d'autres messages ont été envoyés depuis), tu peux choisir de cibler ce message précis de l'historique pour y répondre.
+- Pour ce faire, ajoute EXACTEMENT à la toute fin de ton message (sur une nouvelle ligne) : REPLY_TO:<Message_ID> (où <Message_ID> est l'ID réel du message ciblé présent dans le fil, ex: REPLY_TO:1488856583827095602).
+- N'utilise cela que si le message ciblé n'est pas le tout dernier message du fil. Ne mets rien du tout s'il s'agit de répondre au tout dernier message.
+
 Réponds UNIQUEMENT avec ton message, rien d'autre.
 
 \${BAPHOMET_CAMPAIGNS_KNOWLEDGE}
@@ -212,7 +218,9 @@ function buildInteractionContext(context: BaphometContext): string {
 		context.conversationHistory.forEach((msg, idx) => {
 			const dateStr = msg.createdAt.toLocaleString("fr-FR")
 			const authorLabel = msg.isBot ? "TOI (Baphomet)" : msg.author
-			lines.push(`${idx + 1}. [Le ${dateStr}] ${authorLabel}: ${msg.content}`)
+			lines.push(
+				`Message_ID: ${msg.id} | [Le ${dateStr}] ${authorLabel}: ${msg.content}`,
+			)
 		})
 	} else {
 		if (context.channelHistory && context.channelHistory.length > 0) {

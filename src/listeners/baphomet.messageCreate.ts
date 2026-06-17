@@ -1,3 +1,4 @@
+import type discord from "discord.js"
 import config from "#config"
 import * as command from "#core/command"
 import env from "#core/env"
@@ -60,6 +61,21 @@ export default new Listener({
 
 		if (!content || content.trim().toUpperCase() === "IGNORE") return
 
+		let targetMessage: discord.Message = message
+		let cleanContent = content
+		const replyToMatch = /REPLY_TO:(\d+)\s*$/i.exec(content)
+
+		if (replyToMatch) {
+			const targetId = replyToMatch[1]
+			cleanContent = content.replace(/REPLY_TO:\d+\s*$/i, "").trim()
+			const fetchedTarget = await message.channel.messages
+				.fetch(targetId)
+				.catch(() => null)
+			if (fetchedTarget) {
+				targetMessage = fetchedTarget as discord.Message
+			}
+		}
+
 		if (message.channel) {
 			message.channel.sendTyping().catch(() => {})
 		}
@@ -83,10 +99,12 @@ export default new Listener({
 			}, 250)
 		}
 
-		await message
+		await targetMessage
 			.reply({
-				content,
-				allowedMentions: { repliedUser: hasMention },
+				content: cleanContent,
+				allowedMentions: {
+					repliedUser: hasMention && targetMessage.id === message.id,
+				},
 			})
 			.catch(() => {})
 	},
