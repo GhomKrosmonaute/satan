@@ -56,21 +56,48 @@ function failedOutcome(
 }
 
 export async function executeBaphometModeration(
-	member: discord.GuildMember,
+	author: discord.GuildMember,
 	actions: BaphometModerationAction[],
 ): Promise<BaphometModerationOutcome> {
 	const action = actions[0]
 	if (!action) return { attempted: false }
 
-	const guard = assertCanModerate(member)
+	// Determine who is being moderated
+	let targetMember = author
+	const isTargetingOther = action.targetId && action.targetId !== author.id
+
+	if (isTargetingOther) {
+		// Only Administrators can execute actions on other members
+		const isAuthorAdmin = author.permissions.has(
+			discord.PermissionFlagsBits.Administrator,
+		)
+		if (!isAuthorAdmin) {
+			const reason =
+				"seuls les administrateurs du Temple peuvent ordonner des sanctions sur d'autres membres"
+			const message = `**Modération Baphomet refusée** — L'utilisateur non-admin **${author.user.username}** (\`${author.id}\`) a tenté de modérer un tiers (ID : \`${action.targetId}\`).`
+			await sendLog(author.client, "warning", message)
+			return failedOutcome(action, reason)
+		}
+
+		// Fetch the actual target member
+		const fetchedTarget = await author.guild.members
+			.fetch(action.targetId!)
+			.catch(() => null)
+		if (!fetchedTarget) {
+			return failedOutcome(action, "membre cible introuvable sur ce serveur")
+		}
+		targetMember = fetchedTarget
+	}
+
+	const guard = assertCanModerate(targetMember)
 	if (!guard.ok) {
-		const reason = `sanction impossible : le membre est ${guard.reason}`
-		const message = `Modération Baphomet refusée pour **${member.user.username}** (\`${member.id}\`) : ${guard.reason}.`
-		await sendLog(member.client, "warning", message)
+		const reason = `sanction impossible : le membre cible est ${guard.reason}`
+		const message = `Modération Baphomet refusée pour **${targetMember.user.username}** (\`${targetMember.id}\`) : ${guard.reason}.`
+		await sendLog(author.client, "warning", message)
 		return failedOutcome(action, reason)
 	}
 
-	const me = member.guild.members.me
+	const me = author.guild.members.me
 	if (!me) {
 		return failedOutcome(
 			action,
@@ -84,49 +111,49 @@ export async function executeBaphometModeration(
 				if (!me.permissions.has(discord.PermissionFlagsBits.ManageNicknames)) {
 					throw new Error("permission ManageNicknames manquante sur le bot")
 				}
-				if (!member.manageable) {
+				if (!targetMember.manageable) {
 					throw new Error(
 						"hiérarchie de rôles insuffisante : le membre est trop haut placé pour être renommé",
 					)
 				}
 				const nickname = action.nickname.slice(0, NICKNAME_MAX)
-				await member.setNickname(nickname, `Baphomet : ${action.reason}`)
-				const message = `**Rename Baphomet** — **${member.user.username}** (\`${member.id}\`) → \`${nickname}\`\nRaison : ${action.reason}`
-				await sendLog(member.client, "warning", message)
+				await targetMember.setNickname(nickname, `Baphomet : ${action.reason}`)
+				const message = `**Rename Baphomet** — **${targetMember.user.username}** (\`${targetMember.id}\`) → \`${nickname}\`\nRaison : ${action.reason} (ordonné par **${author.user.username}**)`
+				await sendLog(author.client, "warning", message)
 				return {
 					attempted: true,
 					action: "rename",
 					actionLabel: ACTION_LABELS.rename,
 					success: true,
-					reason: `surnom changé en « ${nickname} »`,
+					reason: `surnom de ${targetMember.user.username} changé en « ${nickname} »`,
 				}
 			}
 			case "kick": {
 				if (!me.permissions.has(discord.PermissionFlagsBits.KickMembers)) {
 					throw new Error("permission KickMembers manquante sur le bot")
 				}
-				if (!member.kickable) {
+				if (!targetMember.kickable) {
 					throw new Error(
 						"hiérarchie de rôles insuffisante : le membre est trop haut placé pour être expulsé",
 					)
 				}
 				const reason = action.reason.slice(0, REASON_MAX)
-				await member.kick(`Baphomet : ${reason}`)
-				const message = `**Kick Baphomet** — **${member.user.username}** (\`${member.id}\`)\nRaison : ${reason}`
-				await sendLog(member.client, "warning", message)
+				await targetMember.kick(`Baphomet : ${reason}`)
+				const message = `**Kick Baphomet** — **${targetMember.user.username}** (\`${targetMember.id}\`)\nRaison : ${reason} (ordonné par **${author.user.username}**)`
+				await sendLog(author.client, "warning", message)
 				return {
 					attempted: true,
 					action: "kick",
 					actionLabel: ACTION_LABELS.kick,
 					success: true,
-					reason: `membre expulsé — ${reason}`,
+					reason: `${targetMember.user.username} a été expulsé(e) — ${reason}`,
 				}
 			}
 			case "ban": {
 				if (!me.permissions.has(discord.PermissionFlagsBits.BanMembers)) {
 					throw new Error("permission BanMembers manquante sur le bot")
 				}
-				if (!member.bannable) {
+				if (!targetMember.bannable) {
 					throw new Error(
 						"hiérarchie de rôles insuffisante : le membre est trop haut placé pour être banni",
 					)
@@ -136,26 +163,26 @@ export async function executeBaphometModeration(
 					7,
 					Math.max(0, action.deleteMessageDays ?? 0),
 				)
-				await member.ban({
+				await targetMember.ban({
 					reason: `Baphomet : ${reason}`,
 					deleteMessageSeconds: deleteMessageSeconds * 24 * 60 * 60,
 				})
-				const message = `**Ban Baphomet** — **${member.user.username}** (\`${member.id}\`)\nRaison : ${reason}`
-				await sendLog(member.client, "success", message)
+				const message = `**Ban Baphomet** — **${targetMember.user.username}** (\`${targetMember.id}\`)\nRaison : ${reason} (ordonné par **${author.user.username}**)`
+				await sendLog(author.client, "success", message)
 				return {
 					attempted: true,
 					action: "ban",
 					actionLabel: ACTION_LABELS.ban,
 					success: true,
-					reason: `membre banni — ${reason}`,
+					reason: `${targetMember.user.username} a été banni(e) — ${reason}`,
 				}
 			}
 		}
 	} catch (err) {
 		const detail = err instanceof Error ? err.message : String(err)
-		const message = `**Modération Baphomet échouée** (${action.type}) pour **${member.user.username}** (\`${member.id}\`) : ${detail}`
+		const message = `**Modération Baphomet échouée** (${action.type}) pour **${targetMember.user.username}** (\`${targetMember.id}\`) : ${detail}`
 		logger.error(message, "namespaces/baphometModeration.ts")
-		await sendLog(member.client, "error", message)
+		await sendLog(author.client, "error", message)
 		return failedOutcome(action, detail)
 	}
 }

@@ -15,10 +15,15 @@ const BAPHOMET_MODERATION_TOOLS: FunctionDeclaration[] = [
 	{
 		name: "rename_member",
 		description:
-			"Renomme le membre qui t'interpelle. À utiliser avec parcimonie (moquerie symbolique, humiliation légère) si le membre le mérite.",
+			"Renomme un membre. Par défaut, cible l'auteur du message s'il trolle. Si un administrateur te demande explicitement de renommer un autre membre, passe son ID dans target_member_id.",
 		parametersJsonSchema: {
 			type: "object",
 			properties: {
+				target_member_id: {
+					type: "string",
+					description:
+						"ID du membre ciblé (facultatif, par défaut l'auteur). Seuls les administrateurs du Temple ont le droit de cibler d'autres membres.",
+				},
 				nickname: {
 					type: "string",
 					description: "Nouveau surnom (32 caractères max)",
@@ -34,10 +39,15 @@ const BAPHOMET_MODERATION_TOOLS: FunctionDeclaration[] = [
 	{
 		name: "kick_member",
 		description:
-			"Expulse le membre du serveur. Uniquement s'il trolle délibérément le Temple ou emmerde les satanistes, après l'avoir averti dans ta réponse.",
+			"Expulse un membre. Par défaut, cible l'auteur s'il trolle. Si un administrateur te demande d'expulser un autre membre, passe son ID dans target_member_id.",
 		parametersJsonSchema: {
 			type: "object",
 			properties: {
+				target_member_id: {
+					type: "string",
+					description:
+						"ID du membre ciblé (facultatif, par défaut l'auteur). Seuls les administrateurs du Temple ont le droit de cibler d'autres membres.",
+				},
 				reason: {
 					type: "string",
 					description: "Raison de l'expulsion",
@@ -49,10 +59,15 @@ const BAPHOMET_MODERATION_TOOLS: FunctionDeclaration[] = [
 	{
 		name: "ban_member",
 		description:
-			"Bannit le membre en dernier recours : troll persistant, mauvaise foi grave ou harcèlement manifeste. N'utilise qu'après avoir envisagé une simple réprimande, un rename ou un kick.",
+			"Bannit un membre en dernier recours (troll persistant, harcèlement). Par défaut, cible l'auteur s'il trolle. Si un administrateur te demande d'en bannir un autre, passe son ID dans target_member_id.",
 		parametersJsonSchema: {
 			type: "object",
 			properties: {
+				target_member_id: {
+					type: "string",
+					description:
+						"ID du membre ciblé (facultatif, par défaut l'auteur). Seuls les administrateurs du Temple ont le droit de cibler d'autres membres.",
+				},
 				reason: {
 					type: "string",
 					description: "Raison du bannissement",
@@ -77,9 +92,14 @@ function getClient(): GoogleGenAI {
 }
 
 export type BaphometModerationAction =
-	| { type: "rename"; nickname: string; reason: string }
-	| { type: "kick"; reason: string }
-	| { type: "ban"; reason: string; deleteMessageDays?: number }
+	| { type: "rename"; targetId?: string; nickname: string; reason: string }
+	| { type: "kick"; targetId?: string; reason: string }
+	| {
+			type: "ban"
+			targetId?: string
+			reason: string
+			deleteMessageDays?: number
+	  }
 
 export type BaphometMessageContext = {
 	id?: string
@@ -318,6 +338,10 @@ function parseModerationActions(
 				if (typeof args.nickname !== "string") break
 				actions.push({
 					type: "rename",
+					targetId:
+						typeof args.target_member_id === "string"
+							? args.target_member_id
+							: undefined,
 					nickname: args.nickname,
 					reason: typeof args.reason === "string" ? args.reason : "sans raison",
 				})
@@ -325,13 +349,24 @@ function parseModerationActions(
 			}
 			case "kick_member": {
 				if (typeof args.reason !== "string") break
-				actions.push({ type: "kick", reason: args.reason })
+				actions.push({
+					type: "kick",
+					targetId:
+						typeof args.target_member_id === "string"
+							? args.target_member_id
+							: undefined,
+					reason: args.reason,
+				})
 				break
 			}
 			case "ban_member": {
 				if (typeof args.reason !== "string") break
 				actions.push({
 					type: "ban",
+					targetId:
+						typeof args.target_member_id === "string"
+							? args.target_member_id
+							: undefined,
 					reason: args.reason,
 					deleteMessageDays:
 						typeof args.delete_message_days === "number"
