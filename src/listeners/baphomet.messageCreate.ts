@@ -32,6 +32,11 @@ export default new Listener({
 		}
 
 		const member = message.member ?? null
+
+		if (message.channel) {
+			message.channel.sendTyping().catch(() => {})
+		}
+
 		const content = await deliverBaphometResponse({
 			client: message.client,
 			member,
