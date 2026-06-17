@@ -32,11 +32,6 @@ export default new Listener({
 		}
 
 		const member = message.member ?? null
-
-		if (message.channel) {
-			message.channel.sendTyping().catch(() => {})
-		}
-
 		const content = await deliverBaphometResponse({
 			client: message.client,
 			member,
@@ -64,6 +59,12 @@ export default new Listener({
 		})
 
 		if (!content || content.trim().toUpperCase() === "IGNORE") return
+
+		if (message.channel) {
+			message.channel.sendTyping().catch(() => {})
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 1500))
 
 		if (hasMention && barePing) {
 			setTimeout(() => {
