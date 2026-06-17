@@ -8,24 +8,25 @@ import { deliverBaphometResponse } from "#namespaces/baphomet"
 export default new Listener({
 	event: "messageCreate",
 	description:
-		"Réponses de Baphomet quand le bot est mentionné (hors lignes de commande)",
+		"Réponses de Baphomet quand le bot est mentionné ou de manière passive",
 	async run(message) {
 		if (config.ignoreBots && message.author.bot) return
 		if (!command.isAnyMessage(message)) return
 
 		const bot = message.client.user
-		if (!message.mentions.users.has(bot.id)) return
+		const hasMention = message.mentions.users.has(bot.id)
 
 		const trimmed = message.content.trim()
-		const barePing = new RegExp(`^<@!?${bot.id}>\\s*$`).test(trimmed)
-
 		const prefix = config.getPrefix
 			? await config.getPrefix(message)
 			: env.BOT_PREFIX
 
 		if (trimmed.startsWith(prefix)) return
 
-		if (message.guild) {
+		const barePing =
+			hasMention && new RegExp(`^<@!?${bot.id}>\\s*$`).test(trimmed)
+
+		if (hasMention && message.guild) {
 			const atStartBot = new RegExp(`^<@!?${bot.id}>\\s*\\S`).test(trimmed)
 			if (atStartBot && !barePing) return
 		}
@@ -35,7 +36,7 @@ export default new Listener({
 			client: message.client,
 			member,
 			errorSource: "listeners/baphomet.messageCreate.ts",
-			errorLogTitle: "Gemini (mention)",
+			errorLogTitle: hasMention ? "Gemini (mention)" : "Gemini (passive)",
 			channel: message.channel,
 			userId: message.author.id,
 			currentMessageId: message.id,
@@ -44,7 +45,7 @@ export default new Listener({
 				username: message.author.username,
 				userMention: `${message.author}`,
 				message: barePing ? "" : trimmed,
-				source: "mention",
+				source: hasMention ? "mention" : "passive",
 				prefix,
 				guildName: message.guild?.name,
 				channelName:
@@ -57,7 +58,9 @@ export default new Listener({
 			},
 		})
 
-		if (barePing) {
+		if (!content || content.trim().toUpperCase() === "IGNORE") return
+
+		if (hasMention && barePing) {
 			setTimeout(() => {
 				message.channel.messages
 					.fetch({ limit: 5 })
@@ -75,7 +78,10 @@ export default new Listener({
 		}
 
 		await message
-			.reply({ content, allowedMentions: { repliedUser: true } })
+			.reply({
+				content,
+				allowedMentions: { repliedUser: hasMention },
+			})
 			.catch(() => {})
 	},
 })
